@@ -68,8 +68,14 @@
     <div id="board" aria-label="Game board"></div>
 
     <div class="post-game-bar hidden" id="post-game-bar">
-      <button class="action-btn primary" id="next-word-btn">⚡ Next Arcade Word</button>
-      <button class="action-btn secondary" id="open-results-btn">📊 View Score &amp; Share</button>
+      <div class="banner-answer-row" id="banner-answer-row">
+        <span class="banner-word-label" id="banner-word-label">THE WORD WAS</span>
+        <div class="word-tiles-row" id="banner-word-tiles" aria-label="Answer word"></div>
+      </div>
+      <div class="post-game-actions">
+        <button class="action-btn primary" id="next-word-btn">⚡ Next Arcade Word</button>
+        <button class="action-btn secondary" id="open-results-btn">📊 Score &amp; Share</button>
+      </div>
     </div>
 
     <div id="keyboard" aria-label="Keyboard"></div>
@@ -112,9 +118,12 @@
 
       <div class="score-card hidden" id="score-card">
         <div class="rank-badge" id="rank-badge">⚡ LIGHTNING</div>
+        <div class="answer-showcase" id="answer-reveal">
+          <span class="answer-showcase-label" id="modal-word-label">THE WORD WAS</span>
+          <div class="word-tiles-row large" id="modal-word-tiles"></div>
+        </div>
         <div class="final-score" id="final-score">0</div>
         <div class="score-formula" id="score-formula">6× multiplier × 25.0s left</div>
-        <div class="answer-reveal" id="answer-reveal">WORD: <strong>FAST</strong></div>
       </div>
 
       <div class="share-row" id="modal-actions">

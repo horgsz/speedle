@@ -602,22 +602,89 @@ main {
   animation: jump 0.55s ease calc(var(--i, 0) * 0.07s);
 }
 
-/* ---- Post-Game Action Bar ---------------------------------------------- */
+/* ---- Post-Game Persistent Answer Banner & Action Bar ------------------- */
+
+main:has(.post-game-bar:not(.hidden)) #board {
+  max-height: 265px;
+}
+main:has(.post-game-bar:not(.hidden)) .tile {
+  max-height: 41px;
+  font-size: 21px;
+}
 
 .post-game-bar {
   display: flex;
-  gap: 8px;
+  flex-direction: column;
+  gap: 7px;
   width: 100%;
   max-width: 390px;
+  background: #0e1628;
+  border: 1.5px solid var(--banner-accent, var(--correct-r0));
+  border-radius: 14px;
+  padding: 8px 10px;
   margin: 2px 0;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5), 0 0 16px var(--banner-glow, rgba(0, 245, 212, 0.2));
   animation: pop-in 0.22s ease;
+  flex-shrink: 0;
+}
+
+.banner-answer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px;
+}
+
+.banner-word-label {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--banner-label-color, #e2e8f0);
+}
+
+.word-tiles-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.word-tile {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 900;
+  text-transform: uppercase;
+  background: var(--banner-tile-bg, var(--correct-r0));
+  color: var(--banner-tile-text, #03221f);
+  border: 1.5px solid var(--banner-tile-border, #5ffbe5);
+  box-shadow: 0 0 10px var(--banner-glow, rgba(0, 245, 212, 0.35));
+}
+
+.word-tiles-row.large .word-tile {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  font-size: 24px;
+}
+
+.post-game-actions {
+  display: flex;
+  gap: 8px;
+  width: 100%;
 }
 
 .action-btn {
   flex: 1;
   border: 0;
   border-radius: 999px;
-  padding: 9px 12px;
+  padding: 8px 12px;
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
@@ -916,11 +983,24 @@ main {
   margin-top: 2px;
 }
 
-.answer-reveal {
-  margin-top: 6px;
-  font-size: 14px;
-  color: #e2e8f0;
-  letter-spacing: 0.8px;
+.answer-showcase {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0 10px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.answer-showcase-label {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--banner-label-color, #cbd5e1);
 }
 
 .share-row {
