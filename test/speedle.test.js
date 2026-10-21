@@ -28,7 +28,7 @@ test("scoreGuess scores exact, present, absent, and duplicate letters properly",
   assert.equal(scoreGuess("zzzz", "fast"), null);
   assert.equal(scoreGuess("too", "fast"), null);
   assert.deepEqual(scoreGuess("fast", "fast"), ["correct", "correct", "correct", "correct"]);
-  assert.deepEqual(scoreGuess("tsaf", "fast"), ["present", "present", "present", "present"]);
+  assert.deepEqual(scoreGuess("pots", "stop"), ["present", "present", "present", "present"]);
   assert.deepEqual(scoreGuess("bell", "ball"), ["correct", "absent", "correct", "correct"]);
   assert.deepEqual(scoreGuess("lull", "ball"), ["absent", "absent", "correct", "correct"]);
 });
