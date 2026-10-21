@@ -69,7 +69,7 @@ body {
   max-width: 500px;
   height: 100dvh;
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px calc(env(safe-area-inset-bottom, 0px) + 28px);
 }
 
 /* ---- Perimeter Reverse-Snake Countdown Border -------------------------- */
@@ -644,7 +644,7 @@ main {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 0 2px 4px;
+  padding: 0 2px 6px;
   flex-shrink: 0;
 }
 
@@ -652,6 +652,10 @@ main {
   display: flex;
   justify-content: center;
   gap: 5px;
+}
+
+.kb-row:last-child {
+  padding: 0 8px;
 }
 
 .key {
@@ -675,8 +679,8 @@ main {
 }
 
 .key.wide {
-  flex: 1.5;
-  max-width: 66px;
+  flex: 1.25;
+  max-width: 56px;
   font-size: 12px;
 }
 

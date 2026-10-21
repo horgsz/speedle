@@ -112,10 +112,11 @@ const snakeTipEl = document.getElementById("snake-tip");
 
 function updateSnakeGeometry() {
   if (!snakeBorderEl) return;
-  const w = Math.max(300, window.innerWidth);
-  const h = Math.max(400, window.innerHeight);
-  const pad = 2.5;
-  const r = 8;
+  const rect = snakeBorderEl.getBoundingClientRect();
+  const w = Math.max(280, Math.round(rect.width || window.innerWidth));
+  const h = Math.max(360, Math.round(rect.height || window.innerHeight));
+  const pad = 2;
+  const r = 6;
   const cx = Math.round(w / 2);
   snakeBorderEl.setAttribute("viewBox", `0 0 ${w} ${h}`);
   const d = [
@@ -136,6 +137,9 @@ function updateSnakeGeometry() {
 }
 
 window.addEventListener("resize", updateSnakeGeometry);
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", updateSnakeGeometry);
+}
 updateSnakeGeometry();
 
 const rows = [];
