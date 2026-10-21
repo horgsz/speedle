@@ -5,10 +5,14 @@
   "type": "module",
   "description": "Speedle — The 30-second 4-letter arcade word game with multiplier scoring and shifting neon hues.",
   "scripts": {
-    "serve": "python3 -m http.server 8000 --directory docs",
+    "build": "node scripts/build-site.mjs",
+    "serve": "node scripts/build-site.mjs && python3 -m http.server 8000 --directory _site",
     "test": "node --test"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
   }
 }

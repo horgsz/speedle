@@ -4,14 +4,14 @@ import {
   INITIAL_TIME_MS,
   GUESS_TIME_BONUS_MS,
   ROW_HUES,
-  scoreGuess,
   calculateScore,
   applyTimeBonus,
-  getDailyPuzzle,
-  pickRandomWord,
+  getDailyScheduleInfo,
+  pickRandomCapsuleIndex,
 } from "./engine.js";
+import { openVault, isSupported } from "./speedbox.js";
 
-const DAILY_STATE_KEY = "speedle.dailyState.v1";
+const DAILY_STATE_KEY = "speedle.dailyState.v2";
 const DAILY_STATS_KEY = "speedle.dailyStats.v1";
 const ARCADE_STATS_KEY = "speedle.arcadeStats.v1";
 const HELP_SEEN_KEY = "speedle.helpSeen.v1";
@@ -53,15 +53,18 @@ let arcadeStats = load(ARCADE_STATS_KEY, defaultStats());
 
 // ---- Game State -----------------------------------------------------------
 
+let vault = null;
 let mode = "daily"; // "daily" | "arcade"
-let dailyPuzzle = getDailyPuzzle();
-let activeWord = dailyPuzzle.answer;
-let activeId = dailyPuzzle.id;
-let recentArcadeWords = [];
+let dailyInfo = getDailyScheduleInfo();
+let activePuzzle = null;
+let activeId = dailyInfo.id;
+let revealedWord = null; // Only populated once a game ends
+let recentArcadeIndices = [];
 
 let state = {
   id: activeId,
   guesses: [],
+  results: [],
   status: "playing", // "playing" | "won" | "lost" | "timeout"
   remainingMs: INITIAL_TIME_MS,
   finalScore: 0,
@@ -69,7 +72,7 @@ let state = {
 };
 
 let currentInput = "";
-let busy = false;
+let busy = true;
 let timerRunning = false;
 let timerPausedForAnim = false;
 let lastFrameTime = 0;
@@ -105,7 +108,6 @@ const openResultsBtn = document.getElementById("open-results-btn");
 const rows = [];
 const keyEls = {};
 
-// Build 6x4 board with row multiplier badges
 for (let r = 0; r < MAX_GUESSES; r++) {
   const rowEl = document.createElement("div");
   rowEl.className = "row";
@@ -133,7 +135,6 @@ for (let r = 0; r < MAX_GUESSES; r++) {
   rows.push({ el: rowEl, tiles, multBadge });
 }
 
-// Build QWERTY keyboard
 const KEY_ROWS = ["qwertyuiop", "asdfghjkl", ["enter", ..."zxcvbnm", "back"]];
 KEY_ROWS.forEach((keys) => {
   const rowEl = document.createElement("div");
@@ -247,7 +248,6 @@ function updateHudDisplay() {
     hudScoreValEl.textContent = String(state.finalScore || 0);
   }
 
-  // Highlight active row multiplier badge
   rows.forEach((rObj, idx) => {
     rObj.el.classList.toggle("active-row", state.status === "playing" && idx === state.guesses.length);
     rObj.el.classList.toggle("past-row", idx < state.guesses.length && !rObj.el.classList.contains("win"));
@@ -396,8 +396,9 @@ function recordStats(won, attempt, score) {
   save(storageKey, targetStats);
 }
 
-function handleTimeout() {
+async function handleTimeout() {
   stopTimer();
+  busy = true;
   state.remainingMs = 0;
   state.status = "timeout";
   state.finalScore = 0;
@@ -405,12 +406,15 @@ function handleTimeout() {
   renderCurrentInput();
   shakeCurrentRow();
   setMood("sad", 0);
-  timerHintEl.textContent = `⏰ Time's up! The word was ${activeWord.toUpperCase()}`;
   updateHudDisplay();
   saveCurrentState();
   recordStats(false, null, 0);
-  toast(`⏰ TIME'S UP! It was ${activeWord.toUpperCase()}`, 3200);
+
+  revealedWord = await activePuzzle.reveal();
+  timerHintEl.textContent = `⏰ Time's up! The word was ${revealedWord.toUpperCase()}`;
+  toast(`⏰ TIME'S UP! It was ${revealedWord.toUpperCase()}`, 3200);
   postGameBarEl.classList.remove("hidden");
+  busy = false;
   setTimeout(() => openStatsModal(), 750);
 }
 
@@ -423,28 +427,31 @@ async function submitGuess() {
     return;
   }
 
+  // Pause clock while hashing and revealing so crypto/animation time is free
+  busy = true;
+  timerPausedForAnim = true;
+
   const guess = currentInput.toLowerCase();
-  const result = scoreGuess(guess, activeWord);
+  const result = await activePuzzle.score(guess);
   if (!result) {
+    timerPausedForAnim = false;
+    lastFrameTime = performance.now();
+    busy = false;
     toast("Not in word list");
     shakeCurrentRow();
     setMood("oops");
     return;
   }
 
-  // Pause clock during flip animation so animation time is free
-  busy = true;
-  timerPausedForAnim = true;
-
   const r = state.guesses.length;
   const attemptNum = r + 1;
   state.guesses.push(guess);
+  state.results.push(result);
   currentInput = "";
   saveCurrentState();
 
   await paintRow(r, guess, result, true);
 
-  // Check if timer somehow expired before submit
   if (state.status !== "playing") {
     busy = false;
     return;
@@ -458,6 +465,7 @@ async function submitGuess() {
     state.status = "won";
     state.winAttempt = attemptNum;
     state.finalScore = scoreInfo.score;
+    revealedWord = guess;
     rows[r].el.classList.add("win");
     setMood("cheer", 0);
     timerHintEl.textContent = `${scoreInfo.tier.rank} — ${scoreInfo.multiplier}× × ${scoreInfo.secondsLeft}s = ${scoreInfo.score} PTS!`;
@@ -473,16 +481,17 @@ async function submitGuess() {
     state.status = "lost";
     state.finalScore = 0;
     setMood("sad", 0);
-    timerHintEl.textContent = `Out of guesses! The word was ${activeWord.toUpperCase()}`;
     updateHudDisplay();
     saveCurrentState();
     recordStats(false, null, 0);
-    toast(`Out of tries! It was ${activeWord.toUpperCase()}`, 3200);
+
+    revealedWord = await activePuzzle.reveal();
+    timerHintEl.textContent = `Out of guesses! The word was ${revealedWord.toUpperCase()}`;
+    toast(`Out of tries! It was ${revealedWord.toUpperCase()}`, 3200);
     postGameBarEl.classList.remove("hidden");
     busy = false;
     setTimeout(() => openStatsModal(), 750);
   } else {
-    // Valid non-winning guess -> Award +3.0s checkpoint time bonus!
     const bonus = applyTimeBonus(state.remainingMs, GUESS_TIME_BONUS_MS, INITIAL_TIME_MS);
     state.remainingMs = bonus.remainingMs;
     showBonusPop(bonus.addedMs);
@@ -499,7 +508,6 @@ async function submitGuess() {
 function handleKey(key) {
   if (busy) return;
 
-  // Allow pressing Enter after game ends to jump straight into a new Arcade round
   if (state.status !== "playing") {
     if (key === "enter" && statsModal.classList.contains("hidden")) {
       startArcadeRound();
@@ -553,37 +561,45 @@ document.addEventListener("keydown", (e) => {
 // ---- Mode Switching & Round Setup -----------------------------------------
 
 async function loadDailyMode() {
+  if (!vault) return;
   stopTimer();
+  busy = true;
   mode = "daily";
   modeDailyBtn.classList.add("active");
   modeDailyBtn.setAttribute("aria-selected", "true");
   modeArcadeBtn.classList.remove("active");
   modeArcadeBtn.setAttribute("aria-selected", "false");
 
-  dailyPuzzle = getDailyPuzzle();
-  activeWord = dailyPuzzle.answer;
-  activeId = dailyPuzzle.id;
-  dayBadgeEl.textContent = `#${dailyPuzzle.dayNumber}`;
+  dailyInfo = getDailyScheduleInfo(new Date(), vault.answerCount);
+  activePuzzle = vault.getPuzzle(dailyInfo.capsuleIndex);
+  activeId = dailyInfo.id;
+  revealedWord = null;
+  dayBadgeEl.textContent = `#${dailyInfo.dayNumber}`;
 
   clearBoardDOM();
   currentInput = "";
 
   const saved = load(DAILY_STATE_KEY, null);
-  if (saved && saved.id === activeId) {
-    state = saved;
-    // If the player refreshed mid-game while playing, keep remainingMs
+  if (saved && saved.id === activeId && Array.isArray(saved.guesses)) {
+    state = {
+      ...saved,
+      results: Array.isArray(saved.results) ? saved.results : [],
+    };
     for (let r = 0; r < state.guesses.length; r++) {
       const g = state.guesses[r];
-      const res = scoreGuess(g, activeWord);
+      const res = state.results[r] || (await activePuzzle.score(g));
+      state.results[r] = res;
       if (res) await paintRow(r, g, res, false);
     }
     if (state.status === "won" && state.winAttempt) {
+      revealedWord = state.guesses[state.winAttempt - 1];
       rows[state.winAttempt - 1].el.classList.add("win");
       const scoreInfo = calculateScore(state.winAttempt, state.remainingMs);
       timerHintEl.textContent = `${scoreInfo.tier.rank} — ${scoreInfo.multiplier}× × ${scoreInfo.secondsLeft}s = ${state.finalScore} PTS!`;
       postGameBarEl.classList.remove("hidden");
     } else if (state.status === "lost" || state.status === "timeout") {
-      timerHintEl.textContent = `The daily word was ${activeWord.toUpperCase()}`;
+      revealedWord = await activePuzzle.reveal();
+      timerHintEl.textContent = `The daily word was ${revealedWord.toUpperCase()}`;
       postGameBarEl.classList.remove("hidden");
     } else {
       timerHintEl.textContent =
@@ -596,6 +612,7 @@ async function loadDailyMode() {
     state = {
       id: activeId,
       guesses: [],
+      results: [],
       status: "playing",
       remainingMs: INITIAL_TIME_MS,
       finalScore: 0,
@@ -606,9 +623,11 @@ async function loadDailyMode() {
   }
 
   updateHudDisplay();
+  busy = false;
 }
 
 function startArcadeRound() {
+  if (!vault) return;
   stopTimer();
   mode = "arcade";
   modeArcadeBtn.classList.add("active");
@@ -616,11 +635,16 @@ function startArcadeRound() {
   modeDailyBtn.classList.remove("active");
   modeDailyBtn.setAttribute("aria-selected", "false");
 
-  activeWord = pickRandomWord([dailyPuzzle.answer, ...recentArcadeWords]);
-  recentArcadeWords.push(activeWord);
-  if (recentArcadeWords.length > 50) recentArcadeWords.shift();
+  const nextIdx = pickRandomCapsuleIndex(vault.answerCount, [
+    dailyInfo.capsuleIndex,
+    ...recentArcadeIndices,
+  ]);
+  recentArcadeIndices.push(nextIdx);
+  if (recentArcadeIndices.length > 50) recentArcadeIndices.shift();
 
+  activePuzzle = vault.getPuzzle(nextIdx);
   activeId = `arcade-${Date.now()}`;
+  revealedWord = null;
   dayBadgeEl.textContent = "ARCADE";
 
   clearBoardDOM();
@@ -628,6 +652,7 @@ function startArcadeRound() {
   state = {
     id: activeId,
     guesses: [],
+    results: [],
     status: "playing",
     remainingMs: INITIAL_TIME_MS,
     finalScore: 0,
@@ -639,6 +664,7 @@ function startArcadeRound() {
   timerHintEl.textContent = "Arcade Round! Type your first letter to start the 30s clock!";
   setMood("idle", 0);
   updateHudDisplay();
+  busy = false;
 }
 
 modeDailyBtn.addEventListener("click", () => {
@@ -660,7 +686,7 @@ openResultsBtn.addEventListener("click", () => {
 // ---- Stats, Share & Modals ------------------------------------------------
 
 function buildShareText() {
-  const headerTag = mode === "daily" ? `Speedle #${dailyPuzzle.dayNumber}` : "Speedle ⚡ Arcade";
+  const headerTag = mode === "daily" ? `Speedle #${dailyInfo.dayNumber}` : "Speedle ⚡ Arcade";
   const tries = state.status === "won" ? `${state.guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`;
   const secLeft = (Math.max(0, state.remainingMs) / 1000).toFixed(1);
   const hue = state.winAttempt ? ROW_HUES[state.winAttempt - 1] : null;
@@ -671,13 +697,12 @@ function buildShareText() {
         ? "⏰ TIME'S UP"
         : "💥 OUT OF TRIES";
 
-  const grid = state.guesses
-    .map((g) => {
-      const res = scoreGuess(g, activeWord) || [];
-      return res
+  const grid = state.results
+    .map((res) =>
+      (res || [])
         .map((s) => (s === "correct" ? "🟩" : s === "present" ? "🟨" : "⬛"))
-        .join("");
-    })
+        .join("")
+    )
     .join("\n");
 
   return [
@@ -693,7 +718,7 @@ function openStatsModal() {
   document.getElementById("stats-title").textContent =
     mode === "daily" ? "Daily Speedle Stats" : "⚡ Arcade Telemetry";
   document.getElementById("day-label").textContent =
-    mode === "daily" ? `Daily Speedle #${dailyPuzzle.dayNumber}` : "Unlimited Arcade Mode";
+    mode === "daily" ? `Daily Speedle #${dailyInfo.dayNumber}` : "Unlimited Arcade Mode";
 
   const scoreCardEl = document.getElementById("score-card");
   const shareBtn = document.getElementById("share-btn");
@@ -723,7 +748,8 @@ function openStatsModal() {
       finalScoreEl.textContent = "0 PTS";
       formulaEl.textContent = "Solve within 30 seconds to score!";
     }
-    answerRevealEl.innerHTML = `WORD: <strong>${activeWord.toUpperCase()}</strong>`;
+    const wordStr = revealedWord ? revealedWord.toUpperCase() : "••••";
+    answerRevealEl.innerHTML = `WORD: <strong>${wordStr}</strong>`;
 
     shareBtn.classList.remove("hidden");
     sendBtn.classList.toggle("hidden", typeof navigator.share !== "function");
@@ -844,9 +870,38 @@ document.querySelectorAll("[data-close]").forEach((btn) => {
   });
 });
 
-// ---- Startup --------------------------------------------------------------
+// ---- Startup & Vault Loading ----------------------------------------------
 
-loadDailyMode().then(() => {
+async function fetchVault() {
+  const metaRes = await fetch("vault.json", { cache: "no-store" });
+  if (!metaRes.ok) throw new Error(`HTTP ${metaRes.status}`);
+  const meta = await metaRes.json();
+
+  const binRes = await fetch(`vault.bin?${meta.h}`, { cache: "no-store" });
+  if (!binRes.ok) throw new Error(`HTTP ${binRes.status}`);
+  const bin = new Uint8Array(await binRes.arrayBuffer());
+
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bin));
+  const hex = Array.from(digest.subarray(0, 8), (b) => b.toString(16).padStart(2, "0")).join("");
+  if (hex !== meta.h) throw new Error("Vault integrity mismatch");
+
+  return openVault(meta, bin);
+}
+
+async function start() {
+  if (!isSupported()) {
+    toast("Speedle needs to be served over http(s)", 0);
+    return;
+  }
+  try {
+    vault = await fetchVault();
+  } catch {
+    toast("Couldn't load Speedle vault. Try refreshing.", 0);
+    return;
+  }
+
+  await loadDailyMode();
+
   if (!localStorage.getItem(HELP_SEEN_KEY) && state.status === "playing" && state.guesses.length === 0) {
     helpModal.classList.remove("hidden");
     try {
@@ -855,4 +910,6 @@ loadDailyMode().then(() => {
       /* ignore */
     }
   }
-});
+}
+
+start();

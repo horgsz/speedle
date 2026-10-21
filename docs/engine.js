@@ -1,9 +1,8 @@
-import { COMMON_WORDS, VALID_GUESSES } from "./words.js";
-
 export const WORD_LENGTH = 4;
 export const MAX_GUESSES = 6;
 export const INITIAL_TIME_MS = 30_000;
 export const GUESS_TIME_BONUS_MS = 3_000;
+export const DEFAULT_ANSWER_COUNT = 1_000;
 
 /**
  * Row-by-row shifting hues for "correct" tiles:
@@ -79,22 +78,15 @@ export const ROW_HUES = [
   },
 ];
 
-export function isValidGuess(word) {
-  if (typeof word !== "string") return false;
-  const clean = word.trim().toLowerCase();
-  return clean.length === WORD_LENGTH && VALID_GUESSES.has(clean);
-}
-
 /**
- * Standard Wordle duplicate-safe scoring for 4-letter words.
- * Returns ["correct" | "present" | "absent", ...] or null if invalid guess.
+ * Pure Wordle duplicate-safe scoring for 4-letter words (used by build/test helpers).
  */
-export function scoreGuess(guess, answer) {
-  if (!isValidGuess(guess) || typeof answer !== "string" || answer.length !== WORD_LENGTH) {
-    return null;
-  }
-  const g = guess.toLowerCase();
-  const a = answer.toLowerCase();
+export function scoreGuessPlain(guess, answer) {
+  if (typeof guess !== "string" || typeof answer !== "string") return null;
+  const g = guess.trim().toLowerCase();
+  const a = answer.trim().toLowerCase();
+  if (!/^[a-z]{4}$/.test(g) || !/^[a-z]{4}$/.test(a)) return null;
+
   const result = Array(WORD_LENGTH).fill("absent");
   const remaining = {};
 
@@ -172,24 +164,6 @@ export function applyTimeBonus(remainingMs, bonusMs = GUESS_TIME_BONUS_MS, maxMs
   };
 }
 
-// Deterministic permutation of indices 0..999 so Daily mode visits all 1,000 common words before repeating
-function buildDailySchedule() {
-  const indices = Array.from({ length: COMMON_WORDS.length }, (_, i) => i);
-  let seed = 0x5eed1e42;
-  const nextRand = () => {
-    seed ^= seed << 13;
-    seed ^= seed >>> 17;
-    seed ^= seed << 5;
-    return (seed >>> 0) / 0x100000000;
-  };
-  for (let i = indices.length - 1; i > 0; i--) {
-    const j = Math.floor(nextRand() * (i + 1));
-    [indices[i], indices[j]] = [indices[j], indices[i]];
-  }
-  return indices;
-}
-
-const DAILY_ORDER = buildDailySchedule();
 const EPOCH_DATE_STR = "2026-10-21"; // Day #1 launch date
 
 export function getSydneyDateString(now = new Date()) {
@@ -209,7 +183,7 @@ export function getSydneyDateString(now = new Date()) {
   }
 }
 
-export function getDailyPuzzle(now = new Date()) {
+export function getDailyScheduleInfo(now = new Date(), totalAnswers = DEFAULT_ANSWER_COUNT) {
   const dateStr = typeof now === "string" ? now : getSydneyDateString(now);
   const [y, m, d] = dateStr.split("-").map(Number);
   const [ey, em, ed] = EPOCH_DATE_STR.split("-").map(Number);
@@ -217,22 +191,22 @@ export function getDailyPuzzle(now = new Date()) {
   const utcEpoch = Date.UTC(ey, em - 1, ed);
   const diffDays = Math.floor((utcDay - utcEpoch) / 86_400_000);
   const dayNumber = Math.max(1, diffDays + 1);
-  const len = COMMON_WORDS.length;
-  const idx = DAILY_ORDER[((diffDays % len) + len) % len];
-  const answer = COMMON_WORDS[idx];
+  const capsuleIndex = ((diffDays % totalAnswers) + totalAnswers) % totalAnswers;
 
   return {
     id: `daily-${dateStr}`,
     dateStr,
     dayNumber,
-    answer,
+    capsuleIndex,
   };
 }
 
-export function pickRandomWord(recentWords = []) {
-  const recentSet = new Set(recentWords.map((w) => w.toLowerCase()));
-  const pool = COMMON_WORDS.filter((w) => !recentSet.has(w));
-  const source = pool.length > 0 ? pool : COMMON_WORDS;
-  const idx = Math.floor(Math.random() * source.length);
-  return source[idx];
+export function pickRandomCapsuleIndex(totalAnswers = DEFAULT_ANSWER_COUNT, excludeIndices = []) {
+  const excluded = new Set(excludeIndices);
+  const candidates = [];
+  for (let i = 0; i < totalAnswers; i++) {
+    if (!excluded.has(i)) candidates.push(i);
+  }
+  const pool = candidates.length > 0 ? candidates : Array.from({ length: totalAnswers }, (_, i) => i);
+  return pool[Math.floor(Math.random() * pool.length)];
 }
