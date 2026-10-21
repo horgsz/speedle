@@ -114,8 +114,8 @@ function updateSnakeGeometry() {
   if (!snakeBorderEl) return;
   const w = Math.max(300, window.innerWidth);
   const h = Math.max(400, window.innerHeight);
-  const pad = 5;
-  const r = 16;
+  const pad = 2.5;
+  const r = 8;
   const cx = Math.round(w / 2);
   snakeBorderEl.setAttribute("viewBox", `0 0 ${w} ${h}`);
   const d = [
