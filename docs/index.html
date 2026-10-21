@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0f19" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Speedle — The 30-Second 4-Letter Word Game</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚡</text></svg>" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <button class="icon-btn" id="help-btn" aria-label="How to play">?</button>
+    <div class="header-center">
+      <h1>
+        <button class="mascot" id="mascot" data-mood="idle" aria-label="Pulse bolt">
+          <svg viewBox="0 0 64 64" aria-hidden="true">
+            <circle class="m-ring" cx="32" cy="34" r="24" />
+            <path class="m-top" d="M26 4h12M32 4v6M50 14l4-4" />
+            <path class="m-bolt" d="M35 15L19 36h12l-3 15 17-21H33l2-15z" />
+          </svg>
+        </button>
+        <span class="brand-title">SPEEDLE</span>
+        <span class="day-badge" id="day-badge">#1</span>
+      </h1>
+      <div class="mode-switch" role="tablist" aria-label="Game Mode">
+        <button class="mode-btn active" id="mode-daily" role="tab" aria-selected="true">Daily</button>
+        <button class="mode-btn" id="mode-arcade" role="tab" aria-selected="false">⚡ Arcade</button>
+      </div>
+    </div>
+    <button class="icon-btn" id="stats-btn" aria-label="Statistics">📊</button>
+  </header>
+
+  <main>
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <section class="hud" aria-label="Timer and Multiplier">
+      <div class="hud-top">
+        <div class="mult-pill" id="active-mult-pill">
+          <span class="mult-label">MULTIPLIER</span>
+          <span class="mult-value" id="active-mult-val">6×</span>
+        </div>
+        <div class="timer-display" id="timer-display" data-state="ready">
+          <span class="timer-icon">⏱</span>
+          <span class="timer-digits" id="timer-digits">30.0s</span>
+          <span class="time-bonus-pop hidden" id="time-bonus-pop">+3.0s</span>
+        </div>
+        <div class="score-pill">
+          <span class="mult-label" id="hud-right-label">POTENTIAL</span>
+          <span class="score-value" id="hud-score-val">1800</span>
+        </div>
+      </div>
+      <div class="timer-track" aria-hidden="true">
+        <div class="timer-bar" id="timer-bar"></div>
+      </div>
+      <div class="timer-hint" id="timer-hint">Type your first letter to start the 30s clock! (+3s per guess)</div>
+    </section>
+
+    <div id="board" aria-label="Game board"></div>
+
+    <div class="post-game-bar hidden" id="post-game-bar">
+      <button class="action-btn primary" id="next-word-btn">⚡ Next Arcade Word</button>
+      <button class="action-btn secondary" id="open-results-btn">📊 View Score &amp; Share</button>
+    </div>
+
+    <div id="keyboard" aria-label="Keyboard"></div>
+  </main>
+
+  <!-- How to Play Modal -->
+  <div class="modal hidden" id="help-modal" role="dialog" aria-labelledby="help-title">
+    <div class="modal-content">
+      <button class="close" data-close aria-label="Close">&times;</button>
+      <h2 id="help-title">How to Play Speedle</h2>
+      <p>Solve the <strong>4-letter word</strong> in up to <strong>6 guesses</strong> before the <strong>30-second clock</strong> runs out! ⚡</p>
+      <ul class="rules-list">
+        <li><strong>⏱ 30s Countdown:</strong> Starts on your first keypress. Every valid guess adds a <strong>+3.0s checkpoint bonus</strong> (up to 30s)!</li>
+        <li><strong>🎯 Arcade Multiplier Score:</strong> <code>(Row Multiplier) × (Seconds Left × 10)</code>. Faster solves in fewer guesses earn massive scores (up to 1,800 pts).</li>
+        <li><strong>🌈 Shifting Correct Hues:</strong> Correct letters glow with a cooler, more electric hue the earlier you find them:</li>
+      </ul>
+      <div class="hue-legend">
+        <div class="hue-chip r0"><span>1st</span><strong>6×</strong></div>
+        <div class="hue-chip r1"><span>2nd</span><strong>5×</strong></div>
+        <div class="hue-chip r2"><span>3rd</span><strong>4×</strong></div>
+        <div class="hue-chip r3"><span>4th</span><strong>3×</strong></div>
+        <div class="hue-chip r4"><span>5th</span><strong>2×</strong></div>
+        <div class="hue-chip r5"><span>6th</span><strong>1×</strong></div>
+      </div>
+      <ul class="tile-examples">
+        <li><span class="mini correct-demo">S</span> Right letter, right spot (locks in that row's green hue).</li>
+        <li><span class="mini present">P</span> In the word, wrong spot.</li>
+        <li><span class="mini absent">D</span> Not in the word at all.</li>
+      </ul>
+      <p class="help-footer">Play the shared <strong>Daily Speedle</strong> or switch to <strong>⚡ Arcade</strong> for unlimited 30-second rounds!</p>
+    </div>
+  </div>
+
+  <!-- Stats & Results Modal -->
+  <div class="modal hidden" id="stats-modal" role="dialog" aria-labelledby="stats-title">
+    <div class="modal-content">
+      <button class="close" data-close aria-label="Close">&times;</button>
+      <h2 id="stats-title">Speedle Telemetry</h2>
+      <div class="day-label" id="day-label">Daily #1</div>
+
+      <div class="score-card hidden" id="score-card">
+        <div class="rank-badge" id="rank-badge">⚡ LIGHTNING</div>
+        <div class="final-score" id="final-score">0</div>
+        <div class="score-formula" id="score-formula">6× multiplier × 25.0s left</div>
+        <div class="answer-reveal" id="answer-reveal">WORD: <strong>FAST</strong></div>
+      </div>
+
+      <div class="share-row" id="modal-actions">
+        <button id="share-btn" class="hidden">📤 Share Result</button>
+        <button id="send-btn" class="hidden" aria-label="Send to a chat">Send ↗</button>
+        <button id="modal-next-btn" class="hidden">⚡ Play Arcade Round</button>
+      </div>
+
+      <div class="stats">
+        <div><span id="stat-played">0</span>Played</div>
+        <div><span id="stat-win">0</span>Win %</div>
+        <div><span id="stat-streak">0</span>Streak</div>
+        <div><span id="stat-best">0</span>Best Score</div>
+      </div>
+
+      <h3>Attempt &amp; Hue Distribution</h3>
+      <div id="distribution"></div>
+      <div id="countdown"></div>
+    </div>
+  </div>
+
+  <!-- Copied Confirmation Modal -->
+  <div class="modal hidden" id="copied-modal" role="dialog" aria-labelledby="copied-title" aria-describedby="copied-sub">
+    <div class="modal-content copied-content">
+      <button class="close" data-close aria-label="Close">&times;</button>
+      <h2 id="copied-title">Copied! ⚡</h2>
+      <p id="copied-sub">Your Speedle score is on the clipboard. Drop it in the group chat!</p>
+      <textarea id="copied-preview" readonly rows="8" aria-label="Your shareable result"></textarea>
+      <button id="copied-ok" data-close>Got it ⚡</button>
+    </div>
+  </div>
+
+  <script type="module" src="game.js"></script>
+</body>
+</html>

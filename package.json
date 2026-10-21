@@ -1,0 +1,14 @@
+{
+  "name": "speedle",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Speedle — The 30-second 4-letter arcade word game with multiplier scoring and shifting neon hues.",
+  "scripts": {
+    "serve": "python3 -m http.server 8000 --directory docs",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
