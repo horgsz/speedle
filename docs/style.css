@@ -69,7 +69,7 @@ body {
   max-width: 500px;
   height: 100dvh;
   margin: 0 auto;
-  padding: calc(env(safe-area-inset-top, 0px) + 10px) 10px calc(env(safe-area-inset-bottom, 0px) + 28px);
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 10px calc(env(safe-area-inset-bottom, 0px) + 10px);
 }
 
 /* ---- Perimeter Reverse-Snake Countdown Border -------------------------- */
@@ -300,7 +300,7 @@ main {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 0 4px;
+  padding: 6px 0 0;
   position: relative;
   min-height: 0;
 }
@@ -459,19 +459,19 @@ main {
 #board {
   display: grid;
   grid-template-rows: repeat(6, 1fr);
-  gap: 5px;
+  gap: 6px;
   width: 100%;
-  max-width: 286px;
+  max-width: 304px;
   flex: 1;
-  max-height: 310px;
-  margin: 2px auto;
+  max-height: 340px;
+  margin: 4px auto;
   align-content: center;
 }
 
 .row {
   display: grid;
   grid-template-columns: 34px repeat(4, 1fr);
-  gap: 5px;
+  gap: 6px;
   align-items: center;
 }
 
@@ -516,14 +516,14 @@ main {
 .tile {
   aspect-ratio: 1;
   width: 100%;
-  max-height: 47px;
+  max-height: 51px;
   border-radius: 10px;
   background: var(--tile-empty);
   border: 2px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 25px;
   font-weight: 900;
   text-transform: uppercase;
   color: var(--text);
@@ -645,7 +645,7 @@ main {
   flex-direction: column;
   gap: 6px;
   padding: 0 2px;
-  margin-bottom: 10px;
+  margin-bottom: 2px;
   flex-shrink: 0;
 }
 
