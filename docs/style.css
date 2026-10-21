@@ -69,7 +69,85 @@ body {
   max-width: 500px;
   height: 100dvh;
   margin: 0 auto;
-  padding: env(safe-area-inset-top, 0) 10px env(safe-area-inset-bottom, 6px);
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 14px calc(env(safe-area-inset-bottom, 0px) + 12px);
+}
+
+/* ---- Perimeter Reverse-Snake Countdown Border -------------------------- */
+
+.snake-border {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  pointer-events: none;
+  z-index: 25;
+  overflow: visible;
+}
+
+.snake-track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 7px;
+}
+
+.snake-body {
+  fill: none;
+  stroke: var(--correct-r0);
+  stroke-width: 7px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1000 1000;
+  stroke-dashoffset: 0;
+  filter: drop-shadow(0 0 8px rgba(0, 245, 212, 0.7));
+  transition: stroke 0.25s ease, filter 0.25s ease, stroke-width 0.2s ease;
+}
+
+.snake-tip {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 11px;
+  stroke-linecap: round;
+  stroke-dasharray: 4 1000;
+  stroke-dashoffset: 0;
+  filter: drop-shadow(0 0 12px #00f5d4);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.snake-border[data-state="running"] .snake-tip,
+.snake-border[data-state="warn"] .snake-tip,
+.snake-border[data-state="danger"] .snake-tip {
+  opacity: 1;
+}
+
+.snake-border[data-state="warn"] .snake-body {
+  stroke: var(--present);
+  filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.8));
+}
+
+.snake-border[data-state="warn"] .snake-tip {
+  filter: drop-shadow(0 0 14px #fbbf24);
+}
+
+.snake-border[data-state="danger"] .snake-body {
+  stroke: var(--danger);
+  stroke-width: 8px;
+  filter: drop-shadow(0 0 14px rgba(239, 68, 68, 0.95));
+}
+
+.snake-border[data-state="danger"] .snake-tip {
+  filter: drop-shadow(0 0 16px #ef4444);
+}
+
+.snake-border[data-state="empty"] .snake-body,
+.snake-border[data-state="empty"] .snake-tip {
+  opacity: 0;
+}
+
+.snake-border.snake-grow .snake-body {
+  stroke: #5ffbe5;
+  stroke-width: 11px;
+  filter: drop-shadow(0 0 18px rgba(0, 245, 212, 1));
 }
 
 /* ---- Header & Mode Switch ---------------------------------------------- */

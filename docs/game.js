@@ -105,6 +105,39 @@ const postGameBarEl = document.getElementById("post-game-bar");
 const nextWordBtn = document.getElementById("next-word-btn");
 const openResultsBtn = document.getElementById("open-results-btn");
 
+const snakeBorderEl = document.getElementById("snake-border");
+const snakeTrackEl = document.getElementById("snake-track");
+const snakeBodyEl = document.getElementById("snake-body");
+const snakeTipEl = document.getElementById("snake-tip");
+
+function updateSnakeGeometry() {
+  if (!snakeBorderEl) return;
+  const w = Math.max(300, window.innerWidth);
+  const h = Math.max(400, window.innerHeight);
+  const pad = 5;
+  const r = 16;
+  const cx = Math.round(w / 2);
+  snakeBorderEl.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  const d = [
+    `M ${cx} ${pad}`,
+    `L ${w - pad - r} ${pad}`,
+    `A ${r} ${r} 0 0 1 ${w - pad} ${pad + r}`,
+    `L ${w - pad} ${h - pad - r}`,
+    `A ${r} ${r} 0 0 1 ${w - pad - r} ${h - pad}`,
+    `L ${pad + r} ${h - pad}`,
+    `A ${r} ${r} 0 0 1 ${pad} ${h - pad - r}`,
+    `L ${pad} ${pad + r}`,
+    `A ${r} ${r} 0 0 1 ${pad + r} ${pad}`,
+    `Z`,
+  ].join(" ");
+  snakeTrackEl.setAttribute("d", d);
+  snakeBodyEl.setAttribute("d", d);
+  snakeTipEl.setAttribute("d", d);
+}
+
+window.addEventListener("resize", updateSnakeGeometry);
+updateSnakeGeometry();
+
 const rows = [];
 const keyEls = {};
 
@@ -194,6 +227,7 @@ function shakeCurrentRow() {
   rowEl.classList.add("shake");
 }
 
+let snakeGrowTimer = null;
 function showBonusPop(addedMs) {
   if (addedMs <= 0) return;
   const secs = (addedMs / 1000).toFixed(1);
@@ -205,6 +239,14 @@ function showBonusPop(addedMs) {
   setTimeout(() => {
     timeBonusPopEl.classList.add("hidden");
   }, 950);
+
+  if (snakeBorderEl) {
+    snakeBorderEl.classList.add("snake-grow");
+    clearTimeout(snakeGrowTimer);
+    snakeGrowTimer = setTimeout(() => {
+      snakeBorderEl.classList.remove("snake-grow");
+    }, 520);
+  }
 }
 
 // ---- Timer Engine ---------------------------------------------------------
@@ -216,19 +258,37 @@ function updateHudDisplay() {
   const ratio = Math.max(0, Math.min(1, state.remainingMs / INITIAL_TIME_MS));
   timerBarEl.style.transform = `scaleX(${ratio})`;
 
+  if (snakeBodyEl && snakeTipEl && snakeBorderEl) {
+    const snakeLen = ratio * 1000;
+    snakeBodyEl.style.strokeDasharray = `${snakeLen.toFixed(1)} 1000`;
+    snakeTipEl.style.strokeDashoffset = `${(-Math.max(0, snakeLen - 2)).toFixed(1)}`;
+  }
+
   timerBarEl.classList.remove("warn", "danger");
-  if (state.status !== "playing") {
-    timerDisplayEl.dataset.state = state.status === "won" ? "running" : "danger";
+  let visualState = "ready";
+  if (ratio <= 0) {
+    visualState = "empty";
+    timerDisplayEl.dataset.state = "danger";
+  } else if (state.status !== "playing") {
+    visualState = state.status === "won" ? "running" : "danger";
+    timerDisplayEl.dataset.state = visualState;
   } else if (!timerRunning) {
+    visualState = "ready";
     timerDisplayEl.dataset.state = "ready";
   } else if (sec <= 6) {
+    visualState = "danger";
     timerDisplayEl.dataset.state = "danger";
     timerBarEl.classList.add("danger");
   } else if (sec <= 14) {
+    visualState = "warn";
     timerDisplayEl.dataset.state = "warn";
     timerBarEl.classList.add("warn");
   } else {
+    visualState = "running";
     timerDisplayEl.dataset.state = "running";
+  }
+  if (snakeBorderEl) {
+    snakeBorderEl.dataset.state = visualState;
   }
 
   const currentAttempt = Math.min(state.guesses.length + 1, MAX_GUESSES);
