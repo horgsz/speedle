@@ -90,13 +90,10 @@ const copiedModal = document.getElementById("copied-modal");
 const dayBadgeEl = document.getElementById("day-badge");
 const modeDailyBtn = document.getElementById("mode-daily");
 const modeArcadeBtn = document.getElementById("mode-arcade");
-const mascotEl = document.getElementById("mascot");
 
 const activeMultValEl = document.getElementById("active-mult-val");
 const timerDisplayEl = document.getElementById("timer-display");
 const timerDigitsEl = document.getElementById("timer-digits");
-const timerBarEl = document.getElementById("timer-bar");
-const timerHintEl = document.getElementById("timer-hint");
 const timeBonusPopEl = document.getElementById("time-bonus-pop");
 const hudRightLabelEl = document.getElementById("hud-right-label");
 const hudScoreValEl = document.getElementById("hud-score-val");
@@ -120,8 +117,8 @@ function updateSnakeGeometry() {
   const rect = snakeBorderEl.getBoundingClientRect();
   const w = Math.max(280, Math.round(rect.width || window.innerWidth));
   const h = Math.max(360, Math.round(rect.height || window.innerHeight));
-  const pad = 2;
-  const r = 6;
+  const pad = 1;
+  const r = 2;
   const cx = Math.round(w / 2);
   snakeBorderEl.setAttribute("viewBox", `0 0 ${w} ${h}`);
   const d = [
@@ -162,7 +159,6 @@ for (let r = 0; r < MAX_GUESSES; r++) {
   const multBadge = document.createElement("div");
   multBadge.className = "row-mult";
   multBadge.textContent = `${hue.multiplier}×`;
-  multBadge.title = `Guess ${r + 1}: ${hue.multiplier}× score multiplier (${hue.name})`;
   rowEl.appendChild(multBadge);
 
   const tiles = [];
@@ -217,17 +213,6 @@ function toast(msg, ms = 1600) {
   }
 }
 
-let moodTimer = null;
-function setMood(mood, ms = 1300) {
-  mascotEl.dataset.mood = mood;
-  clearTimeout(moodTimer);
-  if (ms > 0) {
-    moodTimer = setTimeout(() => {
-      mascotEl.dataset.mood = "idle";
-    }, ms);
-  }
-}
-
 function shakeCurrentRow() {
   const r = Math.min(state.guesses.length, MAX_GUESSES - 1);
   const rowEl = rows[r].el;
@@ -247,14 +232,14 @@ function showBonusPop(addedMs) {
   timeBonusPopEl.style.animation = "";
   setTimeout(() => {
     timeBonusPopEl.classList.add("hidden");
-  }, 950);
+  }, 850);
 
   if (snakeBorderEl) {
     snakeBorderEl.classList.add("snake-grow");
     clearTimeout(snakeGrowTimer);
     snakeGrowTimer = setTimeout(() => {
       snakeBorderEl.classList.remove("snake-grow");
-    }, 520);
+    }, 450);
   }
 }
 
@@ -265,15 +250,13 @@ function updateHudDisplay() {
   timerDigitsEl.textContent = `${sec.toFixed(1)}s`;
 
   const ratio = Math.max(0, Math.min(1, state.remainingMs / INITIAL_TIME_MS));
-  timerBarEl.style.transform = `scaleX(${ratio})`;
 
   if (snakeBodyEl && snakeTipEl && snakeBorderEl) {
     const snakeLen = ratio * 1000;
     snakeBodyEl.style.strokeDasharray = `${snakeLen.toFixed(1)} 1000`;
-    snakeTipEl.style.strokeDashoffset = `${(-Math.max(0, snakeLen - 2)).toFixed(1)}`;
+    snakeTipEl.style.strokeDashoffset = `${(-Math.max(0, snakeLen - 1.5)).toFixed(1)}`;
   }
 
-  timerBarEl.classList.remove("warn", "danger");
   let visualState = "ready";
   if (ratio <= 0) {
     visualState = "empty";
@@ -287,11 +270,9 @@ function updateHudDisplay() {
   } else if (sec <= 6) {
     visualState = "danger";
     timerDisplayEl.dataset.state = "danger";
-    timerBarEl.classList.add("danger");
   } else if (sec <= 14) {
     visualState = "warn";
     timerDisplayEl.dataset.state = "warn";
-    timerBarEl.classList.add("warn");
   } else {
     visualState = "running";
     timerDisplayEl.dataset.state = "running";
@@ -306,14 +287,14 @@ function updateHudDisplay() {
   if (state.status === "playing") {
     activeMultValEl.textContent = `${hue.multiplier}×`;
     activeMultValEl.style.color = hue.color;
-    hudRightLabelEl.textContent = "POTENTIAL";
+    hudRightLabelEl.textContent = "pts";
     const potential = calculateScore(currentAttempt, state.remainingMs).score;
     hudScoreValEl.textContent = String(potential);
   } else {
     const winHue = state.winAttempt ? ROW_HUES[state.winAttempt - 1] : ROW_HUES[5];
     activeMultValEl.textContent = state.winAttempt ? `${winHue.multiplier}×` : "0×";
     activeMultValEl.style.color = state.winAttempt ? winHue.color : "var(--text-muted)";
-    hudRightLabelEl.textContent = "FINAL SCORE";
+    hudRightLabelEl.textContent = "pts";
     hudScoreValEl.textContent = String(state.finalScore || 0);
   }
 
@@ -343,7 +324,6 @@ function startTimerIfNeeded() {
   timerRunning = true;
   timerPausedForAnim = false;
   lastFrameTime = performance.now();
-  timerHintEl.textContent = "⚡ Clock running! Each valid guess adds +3.0s";
   updateHudDisplay();
   rafId = requestAnimationFrame(tickTimer);
 }
@@ -484,34 +464,28 @@ function renderAnswerReveal() {
     return;
   }
 
-  let labelText = "THE WORD WAS";
+  let labelText = "Answer";
   let accent = "#00f5d4";
-  let glow = "rgba(0, 245, 212, 0.28)";
+  let glow = "rgba(0, 245, 212, 0.2)";
   let labelColor = "#00f5d4";
   let tileBg = "#00f5d4";
   let tileText = "#03221f";
-  let tileBorder = "rgba(255, 255, 255, 0.35)";
 
   if (state.status === "won") {
     const hue = ROW_HUES[(state.winAttempt || 1) - 1] || ROW_HUES[0];
-    labelText = "✓ SOLVED — THE WORD WAS";
+    labelText = "Solved";
     accent = hue.color;
     glow = hue.glow;
     labelColor = hue.color;
     tileBg = hue.color;
     tileText = hue.textColor;
-    tileBorder = "rgba(255, 255, 255, 0.38)";
   } else {
-    labelText =
-      state.status === "timeout"
-        ? "⏰ TIME'S UP — THE WORD WAS"
-        : "💥 OUT OF TRIES — THE WORD WAS";
+    labelText = state.status === "timeout" ? "Time's up" : "Out of tries";
     accent = "#ef4444";
-    glow = "rgba(239, 68, 68, 0.32)";
+    glow = "rgba(239, 68, 68, 0.24)";
     labelColor = "#fca5a5";
     tileBg = "#ef4444";
     tileText = "#ffffff";
-    tileBorder = "#fca5a5";
   }
 
   [postGameBarEl, scoreCardEl].forEach((el) => {
@@ -521,7 +495,6 @@ function renderAnswerReveal() {
     el.style.setProperty("--banner-label-color", labelColor);
     el.style.setProperty("--banner-tile-bg", tileBg);
     el.style.setProperty("--banner-tile-text", tileText);
-    el.style.setProperty("--banner-tile-border", tileBorder);
   });
 
   if (bannerWordLabelEl) bannerWordLabelEl.textContent = labelText;
@@ -539,26 +512,23 @@ async function handleTimeout() {
   currentInput = "";
   renderCurrentInput();
   shakeCurrentRow();
-  setMood("sad", 0);
   updateHudDisplay();
   saveCurrentState();
   recordStats(false, null, 0);
 
   revealedWord = await activePuzzle.reveal();
   renderAnswerReveal();
-  timerHintEl.textContent = `⏰ Time's up! The word was ${revealedWord.toUpperCase()}`;
-  toast(`⏰ TIME'S UP! WORD: ${revealedWord.toUpperCase()}`, 4200);
+  toast(`Time's up — ${revealedWord.toUpperCase()}`, 3600);
   postGameBarEl.classList.remove("hidden");
   busy = false;
-  setTimeout(() => openStatsModal(), 750);
+  setTimeout(() => openStatsModal(), 700);
 }
 
 async function submitGuess() {
   if (busy || state.status !== "playing") return;
   if (currentInput.length < WORD_LENGTH) {
-    toast("Need 4 letters!");
+    toast("Enter a 4-letter word");
     shakeCurrentRow();
-    setMood("oops");
     return;
   }
 
@@ -574,7 +544,6 @@ async function submitGuess() {
     busy = false;
     toast("Not in word list");
     shakeCurrentRow();
-    setMood("oops");
     return;
   }
 
@@ -603,12 +572,10 @@ async function submitGuess() {
     revealedWord = guess;
     renderAnswerReveal();
     rows[r].el.classList.add("win");
-    setMood("cheer", 0);
-    timerHintEl.textContent = `${scoreInfo.tier.rank} — ${scoreInfo.multiplier}× × ${scoreInfo.secondsLeft}s = ${scoreInfo.score} PTS!`;
     updateHudDisplay();
     saveCurrentState();
     recordStats(true, attemptNum, scoreInfo.score);
-    toast(`${scoreInfo.tier.rank}! WORD: ${revealedWord.toUpperCase()} (+${scoreInfo.score} PTS)`, 3200);
+    toast(`+${scoreInfo.score} pts`, 2400);
     postGameBarEl.classList.remove("hidden");
     busy = false;
     setTimeout(() => openStatsModal(), 650);
@@ -616,23 +583,20 @@ async function submitGuess() {
     stopTimer();
     state.status = "lost";
     state.finalScore = 0;
-    setMood("sad", 0);
     updateHudDisplay();
     saveCurrentState();
     recordStats(false, null, 0);
 
     revealedWord = await activePuzzle.reveal();
     renderAnswerReveal();
-    timerHintEl.textContent = `Out of guesses! The word was ${revealedWord.toUpperCase()}`;
-    toast(`💥 OUT OF TRIES! WORD: ${revealedWord.toUpperCase()}`, 4200);
+    toast(`Out of tries — ${revealedWord.toUpperCase()}`, 3600);
     postGameBarEl.classList.remove("hidden");
     busy = false;
-    setTimeout(() => openStatsModal(), 750);
+    setTimeout(() => openStatsModal(), 700);
   } else {
     const bonus = applyTimeBonus(state.remainingMs, GUESS_TIME_BONUS_MS, INITIAL_TIME_MS);
     state.remainingMs = bonus.remainingMs;
     showBonusPop(bonus.addedMs);
-    setMood("happy", 900);
     saveCurrentState();
 
     timerPausedForAnim = false;
@@ -732,20 +696,13 @@ async function loadDailyMode() {
       revealedWord = state.guesses[state.winAttempt - 1];
       renderAnswerReveal();
       rows[state.winAttempt - 1].el.classList.add("win");
-      const scoreInfo = calculateScore(state.winAttempt, state.remainingMs);
-      timerHintEl.textContent = `${scoreInfo.tier.rank} — ${scoreInfo.multiplier}× × ${scoreInfo.secondsLeft}s = ${state.finalScore} PTS!`;
       postGameBarEl.classList.remove("hidden");
     } else if (state.status === "lost" || state.status === "timeout") {
       revealedWord = await activePuzzle.reveal();
       renderAnswerReveal();
-      timerHintEl.textContent = `The daily word was ${revealedWord.toUpperCase()}`;
       postGameBarEl.classList.remove("hidden");
     } else {
       renderAnswerReveal();
-      timerHintEl.textContent =
-        state.guesses.length > 0
-          ? "Type a letter to resume your 30s clock!"
-          : "Type your first letter to start the 30s clock! (+3s per guess)";
       postGameBarEl.classList.add("hidden");
     }
   } else {
@@ -759,7 +716,6 @@ async function loadDailyMode() {
       winAttempt: null,
     };
     renderAnswerReveal();
-    timerHintEl.textContent = "Type your first letter to start the 30s clock! (+3s per guess)";
     postGameBarEl.classList.add("hidden");
   }
 
@@ -786,7 +742,7 @@ function startArcadeRound() {
   activePuzzle = vault.getPuzzle(nextIdx);
   activeId = `arcade-${Date.now()}`;
   revealedWord = null;
-  dayBadgeEl.textContent = "ARCADE";
+  dayBadgeEl.textContent = "Arcade";
 
   clearBoardDOM();
   currentInput = "";
@@ -803,8 +759,6 @@ function startArcadeRound() {
   renderAnswerReveal();
   postGameBarEl.classList.add("hidden");
   statsModal.classList.add("hidden");
-  timerHintEl.textContent = "Arcade Round! Type your first letter to start the 30s clock!";
-  setMood("idle", 0);
   updateHudDisplay();
   busy = false;
 }
@@ -828,16 +782,16 @@ openResultsBtn.addEventListener("click", () => {
 // ---- Stats, Share & Modals ------------------------------------------------
 
 function buildShareText() {
-  const headerTag = mode === "daily" ? `Speedle #${dailyInfo.dayNumber}` : "Speedle ⚡ Arcade";
+  const headerTag = mode === "daily" ? `Speedle #${dailyInfo.dayNumber}` : "Speedle Arcade";
   const tries = state.status === "won" ? `${state.guesses.length}/${MAX_GUESSES}` : `X/${MAX_GUESSES}`;
   const secLeft = (Math.max(0, state.remainingMs) / 1000).toFixed(1);
   const hue = state.winAttempt ? ROW_HUES[state.winAttempt - 1] : null;
   const rankStr =
     state.status === "won" && hue
-      ? `${hue.rank} (${hue.multiplier}×)`
+      ? `${hue.multiplier}×`
       : state.status === "timeout"
-        ? "⏰ TIME'S UP"
-        : "💥 OUT OF TRIES";
+        ? "Time's up"
+        : "Out of tries";
 
   const grid = state.results
     .map((res) =>
@@ -848,8 +802,8 @@ function buildShareText() {
     .join("\n");
 
   return [
-    `⚡ ${headerTag} — ${tries}`,
-    `${rankStr} • ⏱ ${secLeft}s left • 🏆 ${state.finalScore} PTS`,
+    `${headerTag} ${tries}`,
+    `${rankStr} · ${secLeft}s left · ${state.finalScore} pts`,
     "",
     grid,
   ].join("\n");
@@ -858,9 +812,9 @@ function buildShareText() {
 function openStatsModal() {
   const s = mode === "daily" ? dailyStats : arcadeStats;
   document.getElementById("stats-title").textContent =
-    mode === "daily" ? "Daily Speedle Stats" : "⚡ Arcade Telemetry";
+    mode === "daily" ? "Daily results" : "Arcade results";
   document.getElementById("day-label").textContent =
-    mode === "daily" ? `Daily Speedle #${dailyInfo.dayNumber}` : "Unlimited Arcade Mode";
+    mode === "daily" ? `Speedle #${dailyInfo.dayNumber}` : "Unlimited Arcade";
 
   const shareBtn = document.getElementById("share-btn");
   const sendBtn = document.getElementById("send-btn");
@@ -879,22 +833,22 @@ function openStatsModal() {
       scoreCardEl.style.setProperty("--score-border", info.tier.color);
       scoreCardEl.style.setProperty("--score-glow", info.tier.glow);
       scoreCardEl.style.setProperty("--score-text", info.tier.textColor);
-      rankBadgeEl.textContent = `${info.tier.rank} • ${info.tier.name.toUpperCase()}`;
-      finalScoreEl.textContent = `${state.finalScore} PTS`;
-      formulaEl.textContent = `${info.multiplier}× (Guess #${state.winAttempt}) × ${info.secondsLeft}s left`;
+      rankBadgeEl.textContent = `${info.multiplier}× ${info.tier.name}`;
+      finalScoreEl.textContent = `${state.finalScore} pts`;
+      formulaEl.textContent = `Guess ${state.winAttempt} with ${info.secondsLeft}s remaining`;
     } else {
       scoreCardEl.style.setProperty("--score-border", "var(--danger)");
       scoreCardEl.style.setProperty("--score-glow", "rgba(239, 68, 68, 0.2)");
       scoreCardEl.style.setProperty("--score-text", "#ffffff");
-      rankBadgeEl.textContent = state.status === "timeout" ? "⏰ TIME'S UP (0.0s)" : "💥 OUT OF GUESSES";
-      finalScoreEl.textContent = "0 PTS";
-      formulaEl.textContent = "Solve within 30 seconds to score!";
+      rankBadgeEl.textContent = state.status === "timeout" ? "0.0s left" : "6/6 guesses";
+      finalScoreEl.textContent = "0 pts";
+      formulaEl.textContent = "Solve within 30 seconds to score";
     }
 
     shareBtn.classList.remove("hidden");
     sendBtn.classList.toggle("hidden", typeof navigator.share !== "function");
     modalNextBtn.classList.remove("hidden");
-    modalNextBtn.textContent = mode === "daily" ? "⚡ Play Unlimited Arcade" : "⚡ Next Word (Enter)";
+    modalNextBtn.textContent = mode === "daily" ? "Play Arcade" : "Next word";
   } else {
     scoreCardEl.classList.add("hidden");
     shareBtn.classList.add("hidden");
@@ -956,10 +910,10 @@ async function copyText(text) {
 }
 
 function showCopiedModal(text, ok) {
-  document.getElementById("copied-title").textContent = ok ? "Copied! ⚡" : "Copy your score";
+  document.getElementById("copied-title").textContent = ok ? "Copied to clipboard" : "Copy your result";
   document.getElementById("copied-sub").textContent = ok
-    ? "Your Speedle result is on the clipboard. Paste it into the group chat!"
-    : "Press and hold the text below to copy:";
+    ? "Paste your result anywhere to share."
+    : "Select and copy the text below:";
   const preview = document.getElementById("copied-preview");
   preview.value = text;
   copiedModal.classList.remove("hidden");
@@ -992,10 +946,6 @@ document.getElementById("help-btn").addEventListener("click", () => {
 
 document.getElementById("stats-btn").addEventListener("click", () => {
   openStatsModal();
-});
-
-mascotEl.addEventListener("click", () => {
-  setMood("cheer", 900);
 });
 
 document.querySelectorAll("[data-close]").forEach((btn) => {
